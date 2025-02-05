@@ -39,6 +39,7 @@ import java.io.IOException
 import java.net.URL
 import kotlin.math.max
 import kotlin.math.min
+import com.example.quickhttptest.ui.theme.Purple80
 
 class MainActivity : ComponentActivity() {
 
@@ -70,7 +71,7 @@ class MainActivity : ComponentActivity() {
                         Text(
                             text = "HTTP test",
                             fontSize = 22.sp,
-                            color = Color.Magenta,
+                            color = Purple80,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
