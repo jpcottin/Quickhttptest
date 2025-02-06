@@ -30,16 +30,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.quickhttptest.ui.theme.QuickhttptestTheme
+import com.example.quickhttptest.ui.theme.Purple80
 import java.io.IOException
 import java.net.URL
 import kotlin.math.max
 import kotlin.math.min
-import com.example.quickhttptest.ui.theme.Purple80
 
 class MainActivity : ComponentActivity() {
 
@@ -63,105 +64,37 @@ class MainActivity : ComponentActivity() {
                 val localUrl = "http://10.0.2.2:8000/100.txt"
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Column(
-                        modifier = Modifier
-                            .padding(innerPadding)
-                            .fillMaxSize()
-                    ) {
-                        Text(
-                            text = "HTTP test",
-                            fontSize = 22.sp,
-                            color = Purple80,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            textAlign = TextAlign.Center
-                        )
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.Start
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(
-                                    selected = selectedUrlType == "distant",
-                                    onClick = { selectedUrlType = "distant" }
-                                )
-                                Column {
-                                    Text(text = "Distant URL", modifier = Modifier.padding(start = 8.dp))
-                                    Text(
-                                        text = distantUrl,
-                                        modifier = Modifier.padding(start = 8.dp),
-                                        fontSize = 10.sp
-                                    )
-                                }
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(
-                                    selected = selectedUrlType == "local",
-                                    onClick = { selectedUrlType = "local" }
-                                )
-                                Column {
-                                    Text(text = "Local URL", modifier = Modifier.padding(start = 8.dp))
-                                    Text(
-                                        text = localUrl,
-                                        modifier = Modifier.padding(start = 8.dp),
-                                        fontSize = 10.sp
-                                    )
-                                }
-                            }
-                        }
-
-                        OutlinedTextField(
-                            value = loopInputText,
-                            onValueChange = {
-                                loopInputText = it
-                                try {
-                                    val num = it.toInt()
-                                    if (num > 0) {
-                                        maxLoops = num
-                                        showError = false
-                                    } else {
-                                        showError = true
-                                    }
-                                } catch (e: NumberFormatException) {
+                    MainContent(
+                        innerPadding = innerPadding,
+                        loopValue = loopValue,
+                        logMessages = logMessages,
+                        isLoopDone = isLoopDone,
+                        selectedUrlType = selectedUrlType,
+                        onUrlTypeSelected = { selectedUrlType = it },
+                        startTest = startTest,
+                        onStartTest = {
+                            // Reset isLoopDone to false when starting a new test
+                            isLoopDone = false
+                            startTest = it
+                        },
+                        maxLoops = maxLoops,
+                        loopInputText = loopInputText,
+                        onLoopInputChanged = { text ->
+                            loopInputText = text
+                            try {
+                                val num = text.toInt()
+                                if (num > 0) {
+                                    maxLoops = num
+                                    showError = false
+                                } else {
                                     showError = true
                                 }
-                            },
-                            label = { Text("Number of Loops") },
-                            isError = showError,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        )
-                        if (showError) {
-                            Text("Please enter a positive number", color = Color.Red, modifier = Modifier.padding(start = 16.dp))
-                        }
-
-                        Button(
-                            onClick = {
-                                if (!showError) {
-                                    startTest = true
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            Text(text = "Start Test")
-                        }
-                        LoopLabel(
-                            modifier = Modifier.padding(16.dp),
-                            loop = loopValue
-                        )
-                        LogDisplay(logMessages, Modifier.weight(1f))
-                        if (isLoopDone) {
-                            DoneLabel(modifier = Modifier.align(Alignment.CenterHorizontally))
-                        }
-                    }
+                            } catch (e: NumberFormatException) {
+                                showError = true
+                            }
+                        },
+                        showError = showError
+                    )
                 }
                 if (startTest) {
                     val thread = Thread {
@@ -170,7 +103,11 @@ class MainActivity : ComponentActivity() {
                             url = url,
                             maxLoops = maxLoops,
                             updateLoop = { newValue -> runOnUiThread { loopValue = newValue } },
-                            logCallback = { newMessage -> runOnUiThread { logMessages = (listOf(newMessage) + logMessages).take(5) } },
+                            logCallback = { newMessage ->
+                                runOnUiThread {
+                                    logMessages = (listOf(newMessage) + logMessages).take(5)
+                                }
+                            },
                             onLoopDone = { runOnUiThread { isLoopDone = true } }
                         )
                         runOnUiThread { startTest = false }
@@ -199,7 +136,7 @@ class MainActivity : ComponentActivity() {
                     conn.setRequestProperty("Connection", "close")
                     val `is` = conn.getInputStream()
 
-                    var contentLength = conn.getContentLength()
+                    var contentLength = conn.contentLength
                     if (contentLength == -1) {
                         contentLength = 100000
                     }
@@ -243,7 +180,112 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun LoopLabel( modifier: Modifier = Modifier, loop: Int) {
+fun MainContent(
+    innerPadding: androidx.compose.foundation.layout.PaddingValues,
+    loopValue: Int,
+    logMessages: List<String>,
+    isLoopDone: Boolean,
+    selectedUrlType: String,
+    onUrlTypeSelected: (String) -> Unit,
+    startTest: Boolean,
+    onStartTest: (Boolean) -> Unit,
+    maxLoops: Int,  //Not used in the preview, but kept for consistency with the real app
+    loopInputText: String,
+    onLoopInputChanged: (String) -> Unit,
+    showError: Boolean
+) {
+    Column(
+        modifier = Modifier
+            .padding(innerPadding)
+            .fillMaxSize()
+    ) {
+        Text(
+            text = "HTTP test",
+            fontSize = 22.sp,
+            color = Purple80, // Consider using MaterialTheme.colorScheme.primary
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            textAlign = TextAlign.Center
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = selectedUrlType == "distant",
+                    onClick = { onUrlTypeSelected("distant") }
+                )
+                Column {
+                    Text(text = "Distant URL", modifier = Modifier.padding(start = 8.dp))
+                    Text(
+                        text = "http://flexpansion.com/public/100.txt", //Hardcoded for preview
+                        modifier = Modifier.padding(start = 8.dp),
+                        fontSize = 10.sp // Consider using MaterialTheme.typography
+                    )
+                }
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = selectedUrlType == "local",
+                    onClick = { onUrlTypeSelected("local") }
+                )
+                Column {
+                    Text(text = "Local URL", modifier = Modifier.padding(start = 8.dp))
+                    Text(
+                        text = "http://10.0.2.2:8000/100.txt", //Hardcoded for preview
+                        modifier = Modifier.padding(start = 8.dp),
+                        fontSize = 10.sp // Consider using MaterialTheme.typography
+                    )
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = loopInputText,
+            onValueChange = { onLoopInputChanged(it) },
+            label = { Text("Number of Loops") },
+            isError = showError,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        )
+        if (showError) {
+            Text("Please enter a positive number", color = Color.Red, modifier = Modifier.padding(start = 16.dp))
+        }
+
+        Button(
+            onClick = {
+                if (!showError) {
+                    onStartTest(true)
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(text = "Start Test")
+        }
+        LoopLabel(
+            modifier = Modifier.padding(16.dp),
+            loop = loopValue
+        )
+        LogDisplay(logMessages, Modifier.weight(1f))
+        if (isLoopDone) {
+            DoneLabel(modifier = Modifier.align(Alignment.CenterHorizontally))
+        }
+    }
+}
+
+
+
+@Composable
+fun LoopLabel(modifier: Modifier = Modifier, loop: Int) {
     Text(
         text = "Loop: $loop",
         modifier = modifier
@@ -281,10 +323,71 @@ fun DoneLabel(modifier: Modifier = Modifier) {
     )
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, name = "Initial State", device = Devices.PIXEL_4)
 @Composable
-fun LoopLabelPreview() {
+fun DefaultPreview() {
     QuickhttptestTheme {
-        LoopLabel( loop = 42)
+        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+            MainContent(
+                innerPadding = innerPadding,
+                loopValue = 0,
+                logMessages = listOf("Log 1", "Log 2"),
+                isLoopDone = false,
+                selectedUrlType = "distant",
+                onUrlTypeSelected = {},
+                startTest = false,
+                onStartTest = {},
+                maxLoops = 99,
+                loopInputText = "99",
+                onLoopInputChanged = {},
+                showError = false
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Error State", device = Devices.PIXEL_4)
+@Composable
+fun ErrorPreview() {
+    QuickhttptestTheme {
+        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+            MainContent(
+                innerPadding = innerPadding,
+                loopValue = 5,
+                logMessages = listOf("Log 1", "Log 2", "Log 3"),
+                isLoopDone = false,
+                selectedUrlType = "local",
+                onUrlTypeSelected = {},
+                startTest = false,
+                onStartTest = {},
+                maxLoops = 99,
+                loopInputText = "", // Empty to simulate error
+                onLoopInputChanged = {},
+                showError = true // Show the error message
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Done State", device = Devices.PIXEL_4)
+@Composable
+fun DonePreview() {
+    QuickhttptestTheme {
+        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+            MainContent(
+                innerPadding = innerPadding,
+                loopValue = 100,
+                logMessages = listOf("Log A", "Log B", "Log C"),
+                isLoopDone = true, // Show the "DONE" label
+                selectedUrlType = "distant",
+                onUrlTypeSelected = {},
+                startTest = false,
+                onStartTest = {},
+                maxLoops = 99,
+                loopInputText = "99",
+                onLoopInputChanged = {},
+                showError = false
+            )
+        }
     }
 }
