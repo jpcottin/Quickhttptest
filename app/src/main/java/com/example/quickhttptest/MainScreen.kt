@@ -32,6 +32,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.quickhttptest.ui.theme.QuickhttptestTheme
 import com.example.quickhttptest.ui.theme.Purple80
+import androidx.compose.ui.platform.testTag // Import testTag!
+
+
+private const val DEFAULT_MAX_LOOPS = 3
 
 @Composable
 fun MainScreen() {
@@ -40,9 +44,11 @@ fun MainScreen() {
     var isLoopDone by remember { mutableStateOf(false) }
     var selectedUrlType by remember { mutableStateOf("distant") }
     var startTest by remember { mutableStateOf(false) }
-    var maxLoops by remember { mutableIntStateOf(99) }
-    var loopInputText by remember { mutableStateOf("99") }
+    var maxLoops by remember { mutableIntStateOf(DEFAULT_MAX_LOOPS) }
+    var loopInputText by remember { mutableStateOf(DEFAULT_MAX_LOOPS.toString()) }
     var showError by remember { mutableStateOf(false) }
+    var elapsedTime by remember { mutableStateOf(0L) } // Store elapsed time
+
 
     val distantUrl = "http://flexpansion.com/public/100.txt"
     val localUrl = "http://10.0.2.2:8000/100.txt"
@@ -59,6 +65,7 @@ fun MainScreen() {
             onStartTest = {
                 isLoopDone = false
                 startTest = it
+                elapsedTime = 0 // Reset elapsed time
             },
             maxLoops = maxLoops,
             loopInputText = loopInputText,
@@ -77,22 +84,32 @@ fun MainScreen() {
                 }
             },
             showError = showError,
-            distantUrl = distantUrl, // Pass these to MainContent
-            localUrl = localUrl      // Pass these to MainContent
+            distantUrl = distantUrl,
+            localUrl = localUrl,
+            elapsedTime = elapsedTime, // Pass to MainContent
+            onLoopDone = { time ->  // Receive in MainScreen
+                isLoopDone = true
+                elapsedTime = time
+            }
         )
     }
     if (startTest) {
 
         val thread = Thread {
             val url = if (selectedUrlType == "distant") distantUrl else localUrl
-            HttpTest.test( // Call the test function from the HttpTest object
+            HttpTest.test(
                 url = url,
                 maxLoops = maxLoops,
                 updateLoop = { newValue ->  loopValue = newValue  },
                 logCallback = { newMessage ->
                     logMessages = (listOf(newMessage) + logMessages).take(5)
                 },
-                onLoopDone = {  isLoopDone = true }
+                onLoopDone = { time ->
+                    isLoopDone = true // Update isLoopDone here
+                    elapsedTime = time// Update elapsed time
+                    loopValue = maxLoops
+                }
+
             )
             startTest = false
         }
@@ -110,14 +127,16 @@ fun MainContent(
     isLoopDone: Boolean,
     selectedUrlType: String,
     onUrlTypeSelected: (String) -> Unit,
-    startTest: Boolean,
-    onStartTest: (Boolean) -> Unit,
+    startTest: Boolean,  // Corrected type
+    onStartTest: (Boolean) -> Unit, // Corrected type
     maxLoops: Int,
     loopInputText: String,
     onLoopInputChanged: (String) -> Unit,
     showError: Boolean,
-    distantUrl: String, // Receive the URLs
-    localUrl: String      // Receive the URLs
+    distantUrl: String,
+    localUrl: String,
+    elapsedTime: Long,
+    onLoopDone : (Long) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -143,12 +162,13 @@ fun MainContent(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(
                     selected = selectedUrlType == "distant",
-                    onClick = { onUrlTypeSelected("distant") }
+                    onClick = { onUrlTypeSelected("distant") },
+                    modifier = Modifier.testTag("radioButton_Distant URL")
                 )
                 Column {
                     Text(text = "Distant URL", modifier = Modifier.padding(start = 8.dp))
                     Text(
-                        text = distantUrl, // Use the passed-in URL
+                        text = distantUrl,
                         modifier = Modifier.padding(start = 8.dp),
                         fontSize = 10.sp
                     )
@@ -158,12 +178,13 @@ fun MainContent(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(
                     selected = selectedUrlType == "local",
-                    onClick = { onUrlTypeSelected("local") }
+                    onClick = { onUrlTypeSelected("local") },
+                    modifier = Modifier.testTag("radioButton_Local URL")
                 )
                 Column {
                     Text(text = "Local URL", modifier = Modifier.padding(start = 8.dp))
                     Text(
-                        text = localUrl, // Use the passed-in URL
+                        text = localUrl,
                         modifier = Modifier.padding(start = 8.dp),
                         fontSize = 10.sp
                     )
@@ -202,7 +223,7 @@ fun MainContent(
         )
         LogDisplay(logMessages, Modifier.weight(1f))
         if (isLoopDone) {
-            DoneLabel(modifier = Modifier.align(Alignment.CenterHorizontally))
+            DoneLabel(elapsedTime = elapsedTime, modifier = Modifier.align(Alignment.CenterHorizontally))
         }
     }
 }
@@ -228,15 +249,13 @@ fun LogDisplay(logMessages: List<String>, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun DoneLabel(modifier: Modifier = Modifier) {
+fun DoneLabel(modifier: Modifier = Modifier, elapsedTime: Long) {
     Text(
-        text = "DONE",
-        fontSize = 48.sp,
+        text = "DONE in $elapsedTime ms",
+        fontSize = 24.sp,
         modifier = modifier.padding(16.dp)
     )
 }
-
-
 
 // ---  Previews ---
 @Preview(showBackground = true, name = "Initial State", device = Devices.PIXEL_4)
@@ -257,8 +276,10 @@ fun DefaultPreview() {
                 loopInputText = "99",
                 onLoopInputChanged = {},
                 showError = false,
-                distantUrl = "http://example.com/distant", // Dummy URLs for preview
-                localUrl = "http://10.0.2.2:8000/local"     // Dummy URLs for preview
+                distantUrl = "http://example.com/distant",
+                localUrl = "http://10.0.2.2:8000/local",
+                elapsedTime = 0,
+                onLoopDone = {}
             )
         }
     }
@@ -279,11 +300,13 @@ fun ErrorPreview() {
                 startTest = false,
                 onStartTest = {},
                 maxLoops = 99,
-                loopInputText = "", // Empty to simulate error
+                loopInputText = "",
                 onLoopInputChanged = {},
-                showError = true, // Show the error message
+                showError = true,
                 distantUrl = "http://example.com/distant",
-                localUrl = "http://10.0.2.2:8000/local"
+                localUrl = "http://10.0.2.2:8000/local",
+                elapsedTime = 0,
+                onLoopDone = {}
             )
         }
     }
@@ -298,7 +321,7 @@ fun DonePreview() {
                 innerPadding = innerPadding,
                 loopValue = 100,
                 logMessages = listOf("Log A", "Log B", "Log C"),
-                isLoopDone = true, // Show the "DONE" label
+                isLoopDone = true,
                 selectedUrlType = "distant",
                 onUrlTypeSelected = {},
                 startTest = false,
@@ -308,7 +331,9 @@ fun DonePreview() {
                 onLoopInputChanged = {},
                 showError = false,
                 distantUrl = "http://example.com/distant",
-                localUrl = "http://10.0.2.2:8000/local"
+                localUrl = "http://10.0.2.2:8000/local",
+                elapsedTime = 1234,
+                onLoopDone = {}
             )
         }
     }

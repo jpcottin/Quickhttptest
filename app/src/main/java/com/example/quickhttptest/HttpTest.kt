@@ -10,15 +10,18 @@ object HttpTest {
     fun test(
         url: String,
         maxLoops: Int,
-        updateLoop: (Int) -> Unit,
-        logCallback: (String) -> Unit,
-        onLoopDone: () -> Unit
+        updateLoop: ((Int) -> Unit)?,
+        logCallback: ((String) -> Unit)?,
+        onLoopDone: ((Long) -> Unit)? // Accept elapsed time (Long)
     ) {
+        val startTime = System.nanoTime() // Capture start time
+
         for (i in 0..maxLoops) {
             val message = "Loop $i"
             Log.d("NetworkBug", message)
-            updateLoop(i)
-            logCallback(message)
+            updateLoop?.invoke(i)
+            logCallback?.invoke(message)
+
             try {
                 val conn = URL(url).openConnection()
                 conn.setRequestProperty("Connection", "close")
@@ -36,7 +39,7 @@ object HttpTest {
                     val bytesLeft = buffer.size - offset
                     val requesting = "Requesting $bytesLeft bytes"
                     Log.d("NetworkBug", requesting)
-                    logCallback(requesting)
+                    logCallback?.invoke(requesting)
                     val bytesRead = `is`.read(buffer, offset, bytesLeft)
                     if (bytesRead == -1) {
                         throw RuntimeException("Premature EOF")
@@ -55,13 +58,15 @@ object HttpTest {
                     Log.d(
                         "NetworkBug", reading
                     )
-                    logCallback(reading)
+                    logCallback?.invoke(reading)
                     offset += bytesRead
                 }
             } catch (e: IOException) {
                 throw RuntimeException(e)
             }
         }
-        onLoopDone()
+        val endTime = System.nanoTime() // Capture end time
+        val elapsedTimeMs = (endTime - startTime) / 1_000_000 // Calculate elapsed time in milliseconds
+        onLoopDone?.invoke(elapsedTimeMs) // Pass elapsed time to callback
     }
 }

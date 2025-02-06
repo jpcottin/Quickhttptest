@@ -9,11 +9,8 @@ import org.junit.runner.RunWith
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
-import androidx.test.espresso.intent.Intents
-import androidx.test.espresso.intent.Intents.intended
-import androidx.test.espresso.intent.matcher.IntentMatchers.*
-import android.content.Intent
-import org.hamcrest.Matchers.* // Import for allOf, not
+
+import androidx.compose.ui.semantics.SemanticsProperties // Import SemanticsProperties
 
 @RunWith(AndroidJUnit4::class)
 class MainActivityTest {
@@ -29,6 +26,7 @@ class MainActivityTest {
         // Verify that the "Start Test" button is displayed.
         composeTestRule.onNodeWithText("Start Test").assertIsDisplayed()
     }
+
 
     @Test
     fun testInputError() {
@@ -67,15 +65,39 @@ class MainActivityTest {
         // Wait for the test to complete (you might need to adjust the wait time).
         composeTestRule.waitUntil(timeoutMillis = 5000) {
             composeTestRule
-                .onAllNodesWithText("DONE")
+                .onAllNodesWithText("DONE", substring = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
 
-        // Verify that the "DONE" label is displayed.
-        composeTestRule.onNodeWithText("DONE").assertIsDisplayed()
+        // Get the text of the DoneLabel.  This is the key addition.
+        val doneLabelText = composeTestRule.onNodeWithText("DONE", substring = true)
+            .fetchSemanticsNode()
+            .config[SemanticsProperties.Text] // Correct way to get the text
+            .first()
+            .text
+
+
+        // 1. Check if "ms" is present.
+        assert(doneLabelText.contains("ms")) { "Done label should contain 'ms'" }
+
+
+        // 2. Check if there's a positive number before "ms".
+        val regex = Regex("""(\d+)\s*ms""") // Regular expression to match one or more digits followed by "ms"
+        val matchResult = regex.find(doneLabelText)
+
+        assert(matchResult != null) { "Done label should contain a number followed by 'ms'" }
+
+        matchResult?.let {
+            val numberString = it.groupValues[1] // Get the captured number (group 1)
+            val number = numberString.toIntOrNull()
+            assert(number != null) { "The matched group should be a number" } // Check for conversion errors
+            assert(number!! >= 0) { "Elapsed time should be non-negative" } // Check for positive number
+        }
+
 
         //check if "Loop: 3" is displayed
         composeTestRule.onNodeWithText("Loop: 3").assertIsDisplayed()
     }
+
 
 }
