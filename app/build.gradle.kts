@@ -39,6 +39,9 @@ android {
     }
 }
 
+
+
+
 dependencies {
 
     implementation(libs.androidx.core.ktx)
@@ -56,4 +59,20 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // UI Tests
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // Optional: AndroidJUnitRunner and JUnit Rules
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:rules:1.6.1")
+    // Optional:  Espresso-Intents (for testing Intents)
+    androidTestImplementation("androidx.test.espresso:espresso-intents:3.5.1")
+
+    // Debug dependencies (only needed for debugging tests)
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
+
+    testImplementation("io.mockk:mockk:1.13.8") // Or the latest version
+
 }
