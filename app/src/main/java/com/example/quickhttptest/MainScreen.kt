@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,7 +48,7 @@ fun MainScreen() {
     var maxLoops by remember { mutableIntStateOf(DEFAULT_MAX_LOOPS) }
     var loopInputText by remember { mutableStateOf(DEFAULT_MAX_LOOPS.toString()) }
     var showError by remember { mutableStateOf(false) }
-    var elapsedTime by remember { mutableStateOf(0L) } // Store elapsed time
+    var elapsedTime by remember { mutableLongStateOf(0L) } // Store elapsed time
 
 
     val distantUrl = "http://flexpansion.com/public/100.txt"
@@ -61,13 +62,11 @@ fun MainScreen() {
             isLoopDone = isLoopDone,
             selectedUrlType = selectedUrlType,
             onUrlTypeSelected = { selectedUrlType = it },
-            startTest = startTest,
             onStartTest = {
                 isLoopDone = false
                 startTest = it
                 elapsedTime = 0 // Reset elapsed time
             },
-            maxLoops = maxLoops,
             loopInputText = loopInputText,
             onLoopInputChanged = { text ->
                 loopInputText = text
@@ -79,18 +78,14 @@ fun MainScreen() {
                     } else {
                         showError = true
                     }
-                } catch (e: NumberFormatException) {
+                } catch (_: NumberFormatException) {
                     showError = true
                 }
             },
             showError = showError,
             distantUrl = distantUrl,
             localUrl = localUrl,
-            elapsedTime = elapsedTime, // Pass to MainContent
-            onLoopDone = { time ->  // Receive in MainScreen
-                isLoopDone = true
-                elapsedTime = time
-            }
+            elapsedTime = elapsedTime // Pass to MainContent
         )
     }
     if (startTest) {
@@ -127,16 +122,13 @@ fun MainContent(
     isLoopDone: Boolean,
     selectedUrlType: String,
     onUrlTypeSelected: (String) -> Unit,
-    startTest: Boolean,  // Corrected type
     onStartTest: (Boolean) -> Unit, // Corrected type
-    maxLoops: Int,
     loopInputText: String,
     onLoopInputChanged: (String) -> Unit,
     showError: Boolean,
     distantUrl: String,
     localUrl: String,
-    elapsedTime: Long,
-    onLoopDone : (Long) -> Unit
+    elapsedTime: Long
 ) {
     Column(
         modifier = Modifier
@@ -238,7 +230,7 @@ fun LogDisplay(logMessages: List<String>, modifier: Modifier = Modifier) {
                 TextView(context).apply {
                     movementMethod = ScrollingMovementMethod()
                     setHorizontallyScrolling(false)
-                    setTextAlignment(android.view.View.TEXT_ALIGNMENT_VIEW_START)
+                    textAlignment = android.view.View.TEXT_ALIGNMENT_VIEW_START
                 }
             },
             update = { textView ->
@@ -270,16 +262,13 @@ fun DefaultPreview() {
                 isLoopDone = false,
                 selectedUrlType = "distant",
                 onUrlTypeSelected = {},
-                startTest = false,
                 onStartTest = {},
-                maxLoops = 99,
                 loopInputText = "99",
                 onLoopInputChanged = {},
                 showError = false,
                 distantUrl = "http://example.com/distant",
                 localUrl = "http://10.0.2.2:8000/local",
-                elapsedTime = 0,
-                onLoopDone = {}
+                elapsedTime = 0
             )
         }
     }
@@ -297,16 +286,13 @@ fun ErrorPreview() {
                 isLoopDone = false,
                 selectedUrlType = "local",
                 onUrlTypeSelected = {},
-                startTest = false,
                 onStartTest = {},
-                maxLoops = 99,
                 loopInputText = "",
                 onLoopInputChanged = {},
                 showError = true,
                 distantUrl = "http://example.com/distant",
                 localUrl = "http://10.0.2.2:8000/local",
-                elapsedTime = 0,
-                onLoopDone = {}
+                elapsedTime = 0
             )
         }
     }
@@ -324,16 +310,13 @@ fun DonePreview() {
                 isLoopDone = true,
                 selectedUrlType = "distant",
                 onUrlTypeSelected = {},
-                startTest = false,
                 onStartTest = {},
-                maxLoops = 99,
                 loopInputText = "99",
                 onLoopInputChanged = {},
                 showError = false,
                 distantUrl = "http://example.com/distant",
                 localUrl = "http://10.0.2.2:8000/local",
-                elapsedTime = 1234,
-                onLoopDone = {}
+                elapsedTime = 1234
             )
         }
     }

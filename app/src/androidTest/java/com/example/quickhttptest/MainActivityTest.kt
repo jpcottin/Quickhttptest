@@ -12,6 +12,7 @@ import androidx.compose.ui.test.performTextInput
 
 import androidx.compose.ui.semantics.SemanticsProperties // Import SemanticsProperties
 
+
 @RunWith(AndroidJUnit4::class)
 class MainActivityTest {
 
@@ -99,5 +100,53 @@ class MainActivityTest {
         composeTestRule.onNodeWithText("Loop: 3").assertIsDisplayed()
     }
 
+
+    @Test
+    fun testDifferentNumberOfLoops() {
+        //Different values to test.
+        val listOfLoops = listOf(1, 3, 5)
+        for(numberOfLoops in listOfLoops){
+            // Enter the number of loops.
+            composeTestRule.onNodeWithText("Number of Loops").performTextClearance()
+            composeTestRule.onNodeWithText("Number of Loops").performTextInput(numberOfLoops.toString())
+
+            // Click the Start Test button.
+            composeTestRule.onNodeWithText("Start Test").performClick()
+            // Wait until the test finishes.
+            composeTestRule.waitUntil(timeoutMillis = 10000) {
+                composeTestRule
+                    .onAllNodesWithText("DONE", substring = true)
+                    .fetchSemanticsNodes().isNotEmpty()
+            }
+            // Get the text of the DoneLabel.  This is the key addition.
+            val doneLabelText = composeTestRule.onNodeWithText("DONE", substring = true)
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.Text] // Correct way to get the text
+                .first()
+                .text
+
+
+            // 1. Check if "ms" is present.
+            assert(doneLabelText.contains("ms")) { "Done label should contain 'ms'" }
+
+
+            // 2. Check if there's a positive number before "ms".
+            val regex = Regex("""(\d+)\s*ms""") // Regular expression to match one or more digits followed by "ms"
+            val matchResult = regex.find(doneLabelText)
+
+            assert(matchResult != null) { "Done label should contain a number followed by 'ms'" }
+
+            matchResult?.let {
+                val numberString = it.groupValues[1] // Get the captured number (group 1)
+                val number = numberString.toIntOrNull()
+                assert(number != null) { "The matched group should be a number" } // Check for conversion errors
+                assert(number!! >= 0) { "Elapsed time should be non-negative" } // Check for positive number
+            }
+
+
+            //check if "Loop: X" is displayed
+            composeTestRule.onNodeWithText("Loop: $numberOfLoops").assertIsDisplayed()
+        }
+    }
 
 }

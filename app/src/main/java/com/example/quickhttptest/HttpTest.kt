@@ -48,11 +48,11 @@ object HttpTest {
                     }
 
                     val LOG_BYTES = 25
-                    val reading = "Read $bytesRead bytes: " + kotlin.text.String(
+                    val reading = "Read $bytesRead bytes: " + String(
                         buffer,
                         offset,
                         min(LOG_BYTES.toDouble(), bytesRead.toDouble()).toInt()
-                    ) + " ... " + kotlin.text.String(
+                    ) + " ... " + String(
                         buffer,
                         max(0.0, (offset + bytesRead - LOG_BYTES).toDouble()).toInt(),
                         min(LOG_BYTES.toDouble(), bytesRead.toDouble()).toInt()
