@@ -1,5 +1,5 @@
 [versions]
-agp = "8.10.0-alpha03"
+agp = "8.10.1"
 espressoIntents = "3.6.1"
 kotlin = "2.0.21"
 coreKtx = "1.15.0"

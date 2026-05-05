@@ -1,98 +1,116 @@
 package com.example.quickhttptest
 
 import android.util.Log
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.yield
 import java.io.IOException
 import java.net.ConnectException
+import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
 import java.net.UnknownHostException
+import kotlin.coroutines.coroutineContext
 import kotlin.math.max
 import kotlin.math.min
 
 object HttpTest {
-    fun test(
+    suspend fun test(
         url: String,
         maxLoops: Int,
+        bufferSize: Int,
         updateLoop: ((Int) -> Unit)?,
         logCallback: ((String) -> Unit)?,
         onLoopDone: ((Long) -> Unit)? // Accept elapsed time (Long)
     ) {
         val startTime = System.nanoTime() // Capture start time
 
-        for (i in 0..maxLoops) {
+        for (i in 1..maxLoops) {
+            // Check if the coroutine was cancelled between loops
+            if (!coroutineContext.isActive) {
+                logCallback?.invoke("Test cancelled.")
+                break
+            }
+
             val message = "Loop $i"
             Log.d("NetworkBug", message)
             updateLoop?.invoke(i)
             logCallback?.invoke(message)
 
+            var conn: HttpURLConnection? = null
             try {
-                val conn = URL(url).openConnection()
+                conn = URL(url).openConnection() as HttpURLConnection
                 conn.setRequestProperty("Connection", "close")
-                val `is` = conn.getInputStream()
-
-                var contentLength = conn.contentLength
-                if (contentLength == -1) {
-                    contentLength = 100000
+                conn.connectTimeout = 5000 // 5 seconds connect timeout
+                conn.readTimeout = 10000 // 10 seconds read timeout
+                
+                val status = conn.responseCode
+                val isErrorStatus = status >= 400
+                
+                if (isErrorStatus) {
+                    val statusMsg = "HTTP Error $status: ${conn.responseMessage}"
+                    Log.e("NetworkBug", statusMsg)
+                    logCallback?.invoke(statusMsg)
                 }
 
-                val buffer = ByteArray(contentLength)
+                // If error, read from errorStream, otherwise from inputStream
+                val `is` = if (isErrorStatus) conn.errorStream else conn.inputStream
+                
+                if (`is` != null) {
+                    val buffer = ByteArray(bufferSize)
+                    var totalBytesRead = 0
 
-                var offset = 0
-                while (offset < buffer.size) {
-                    val bytesLeft = buffer.size - offset
-                    val requesting = "Requesting $bytesLeft bytes"
-                    Log.d("NetworkBug", requesting)
-                    logCallback?.invoke(requesting)
-                    val bytesRead = `is`.read(buffer, offset, bytesLeft)
-                    if (bytesRead == -1) {
-                        throw RuntimeException("Premature EOF")
+                    while (true) {
+                        yield() // Yield to allow cancellation during tight reading loops
+                        
+                        val bytesRead = `is`.read(buffer)
+                        if (bytesRead == -1) {
+                            break
+                        }
+                        totalBytesRead += bytesRead
+                        
+                        val LOG_BYTES = 25
+                        val startStr = String(buffer, 0, min(LOG_BYTES, bytesRead))
+                        val endStr = String(buffer, max(0, bytesRead - LOG_BYTES), min(LOG_BYTES, bytesRead))
+                        
+                        val reading = "Read $bytesRead bytes: $startStr ... $endStr"
+                        Log.d("NetworkBug", reading)
+                        logCallback?.invoke(reading)
                     }
-
-                    val LOG_BYTES = 25
-                    val reading = "Read $bytesRead bytes: " + String(
-                        buffer,
-                        offset,
-                        min(LOG_BYTES.toDouble(), bytesRead.toDouble()).toInt()
-                    ) + " ... " + String(
-                        buffer,
-                        max(0.0, (offset + bytesRead - LOG_BYTES).toDouble()).toInt(),
-                        min(LOG_BYTES.toDouble(), bytesRead.toDouble()).toInt()
-                    )
-                    Log.d(
-                        "NetworkBug", reading
-                    )
-                    logCallback?.invoke(reading)
-                    offset += bytesRead
+                    `is`.close()
+                } else if (isErrorStatus) {
+                    logCallback?.invoke("No error body provided by server.")
                 }
+                
+                // If it was an HTTP error, we might still want to break the loop or continue
+                // For this test tool, we'll continue to the next loop unless it's a hard network error.
+
+            } catch (e: SocketTimeoutException) {
+                val errorMessage = "Timeout Error: ${e.message}"
+                Log.e("NetworkBug", errorMessage, e)
+                logCallback?.invoke(errorMessage)
+                break // Exit the loop on timeout
             } catch (e: ConnectException) {
-                // Handle ConnectException specifically (connection refused, timed out, etc.)
                 val errorMessage = "Connection Error: ${e.message}"
                 Log.e("NetworkBug", errorMessage, e)
                 logCallback?.invoke(errorMessage)
-                // You can decide how to proceed here:
-                // - Retry the connection
-                // - Stop the loop
-                // - Inform the user
-                // throw RuntimeException(e) // Or, re-throw if you want to crash here
-                return // Exit the function in case of error.
+                break // Exit the loop on connection refusal
             } catch (e: UnknownHostException) {
-                // Handle UnknownHostException (DNS resolution failed)
                 val errorMessage = "Unknown Host: ${e.message}"
                 Log.e("NetworkBug", errorMessage, e)
                 logCallback?.invoke(errorMessage)
-                return // Exit the function in case of error.
+                break
             } catch (e: IOException) {
-                // Handle other IOExceptions
                 val errorMessage = "IO Error: ${e.message}"
                 Log.e("NetworkBug", errorMessage, e)
                 logCallback?.invoke(errorMessage)
-                return // Exit the function in case of error.
-                // throw RuntimeException(e) // Or, re-throw if you want to crash here
+                break
             } catch (e: RuntimeException) {
-                // Handle RuntimeExceptions
                 val errorMessage = "Runtime Error: ${e.message}"
                 Log.e("NetworkBug", errorMessage, e)
                 logCallback?.invoke(errorMessage)
-                return // Exit the function in case of error.
+                break
+            } finally {
+                conn?.disconnect()
             }
         }
         val endTime = System.nanoTime() // Capture end time
