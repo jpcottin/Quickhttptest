@@ -72,6 +72,7 @@ dependencies {
     debugImplementation(libs.ui.test.manifest)
 
     testImplementation(libs.kotlin.test)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 
     testImplementation(libs.mockk)
 
