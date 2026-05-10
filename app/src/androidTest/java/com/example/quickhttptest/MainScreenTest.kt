@@ -1,6 +1,7 @@
 package com.example.quickhttptest
 
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -16,7 +17,7 @@ import org.junit.runner.RunWith
 class MainScreenTest {
 
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
     fun testInitialStateAndInteractions() {
@@ -29,10 +30,10 @@ class MainScreenTest {
         // Check if elements exist
         composeTestRule.onNodeWithText("HTTP test").assertExists()
         composeTestRule.onNodeWithText("Start Test").assertExists()
-        
+
         // Select Local URL radio button
         composeTestRule.onNodeWithTag("radioButton_Local URL").performClick()
-        
+
         // Change loops number
         composeTestRule.onNodeWithText("Number of Loops").performTextClearance()
         composeTestRule.onNodeWithText("Number of Loops").performTextInput("10")
@@ -40,7 +41,7 @@ class MainScreenTest {
         // Change buffer size
         composeTestRule.onNodeWithText("Buffer Size (bytes)").performTextClearance()
         composeTestRule.onNodeWithText("Buffer Size (bytes)").performTextInput("2048")
-        
+
         // Check if LoopLabel is visible and displays default value
         composeTestRule.onNodeWithText("Loop: 0").assertExists()
 
