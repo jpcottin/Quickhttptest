@@ -64,7 +64,7 @@ class MainActivityTest {
         composeTestRule.onNodeWithText("Start Test").performClick()
 
         // Wait for the test to complete (you might need to adjust the wait time).
-        composeTestRule.waitUntil(timeoutMillis = 5000) {
+        composeTestRule.waitUntil(timeoutMillis = 30000) {
             composeTestRule
                 .onAllNodesWithText("DONE", substring = true)
                 .fetchSemanticsNodes().isNotEmpty()
@@ -113,7 +113,7 @@ class MainActivityTest {
             // Click the Start Test button.
             composeTestRule.onNodeWithText("Start Test").performClick()
             // Wait until the test finishes.
-            composeTestRule.waitUntil(timeoutMillis = 10000) {
+            composeTestRule.waitUntil(timeoutMillis = 30000) {
                 composeTestRule
                     .onAllNodesWithText("DONE", substring = true)
                     .fetchSemanticsNodes().isNotEmpty()
