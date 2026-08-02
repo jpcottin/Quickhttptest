@@ -44,6 +44,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
         loopValue = uiState.loopValue,
         logMessages = uiState.logMessages,
         isLoopDone = uiState.isLoopDone,
+        isSuccess = uiState.isSuccess,
         selectedUrlType = uiState.selectedUrlType,
         onUrlTypeSelected = viewModel::onUrlTypeSelected,
         isRunning = uiState.isRunning,
@@ -66,6 +67,7 @@ fun MainContent(
     loopValue: Int,
     logMessages: List<String>,
     isLoopDone: Boolean,
+    isSuccess: Boolean,
     selectedUrlType: String,
     onUrlTypeSelected: (String) -> Unit,
     isRunning: Boolean,
@@ -164,7 +166,7 @@ fun MainContent(
         LoopLabel(modifier = Modifier.padding(horizontal = 16.dp), loop = loopValue)
         LogDisplay(logMessages, Modifier.fillMaxWidth())
         if (isLoopDone) {
-            DoneLabel(elapsedTime = elapsedTime, modifier = Modifier.fillMaxWidth())
+            DoneLabel(elapsedTime = elapsedTime, isSuccess = isSuccess, modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -181,10 +183,11 @@ fun LogDisplay(logMessages: List<String>, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun DoneLabel(modifier: Modifier = Modifier, elapsedTime: Long) {
+fun DoneLabel(modifier: Modifier = Modifier, elapsedTime: Long, isSuccess: Boolean = true) {
     Text(
-        text = "DONE in $elapsedTime ms",
+        text = if (isSuccess) "DONE in $elapsedTime ms" else "FAILED after $elapsedTime ms",
         fontSize = 24.sp,
+        color = if (isSuccess) Color.Unspecified else MaterialTheme.colorScheme.error,
         textAlign = TextAlign.Center,
         modifier = modifier.padding(16.dp)
     )
@@ -200,6 +203,7 @@ fun DefaultPreview() {
             loopValue = 0,
             logMessages = listOf("Log 1", "Log 2"),
             isLoopDone = false,
+            isSuccess = true,
             selectedUrlType = "distant",
             onUrlTypeSelected = {},
             isRunning = false,
@@ -226,6 +230,7 @@ fun ErrorPreview() {
             loopValue = 5,
             logMessages = listOf("Log 1", "Log 2", "Log 3"),
             isLoopDone = false,
+            isSuccess = true,
             selectedUrlType = "local",
             onUrlTypeSelected = {},
             isRunning = false,
@@ -252,6 +257,7 @@ fun RunningPreview() {
             loopValue = 42,
             logMessages = listOf("Log 1", "Log 2", "Log 3"),
             isLoopDone = false,
+            isSuccess = true,
             selectedUrlType = "distant",
             onUrlTypeSelected = {},
             isRunning = true,
@@ -278,6 +284,7 @@ fun DonePreview() {
             loopValue = 100,
             logMessages = listOf("Log A", "Log B", "Log C"),
             isLoopDone = true,
+            isSuccess = true,
             selectedUrlType = "distant",
             onUrlTypeSelected = {},
             isRunning = false,

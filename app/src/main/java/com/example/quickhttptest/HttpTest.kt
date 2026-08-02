@@ -16,6 +16,12 @@ import java.net.UnknownHostException
 import kotlin.math.max
 import kotlin.math.min
 
+data class HttpTestResult(
+    val elapsedTimeMs: Long,
+    val completedLoops: Int,
+    val success: Boolean
+)
+
 class HttpTest(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
@@ -25,9 +31,11 @@ class HttpTest(
         bufferSize: Int,
         updateLoop: ((Int) -> Unit)?,
         logCallback: ((String) -> Unit)?,
-        onLoopDone: ((Long) -> Unit)?
+        onLoopDone: ((HttpTestResult) -> Unit)?
     ) = withContext(ioDispatcher) {
         val startTime = System.nanoTime()
+        var completedLoops = 0
+        var failed = false
 
         for (i in 1..maxLoops) {
             if (!isActive) {
@@ -82,32 +90,39 @@ class HttpTest(
                     logCallback?.invoke("No error body provided by server.")
                 }
 
+                completedLoops = i
+
             } catch (e: CancellationException) {
                 throw e
             } catch (e: SocketTimeoutException) {
                 val errorMessage = "Timeout Error: ${e.message}"
                 Log.e("HttpTest", errorMessage, e)
                 logCallback?.invoke(errorMessage)
+                failed = true
                 break
             } catch (e: ConnectException) {
                 val errorMessage = "Connection Error: ${e.message}"
                 Log.e("HttpTest", errorMessage, e)
                 logCallback?.invoke(errorMessage)
+                failed = true
                 break
             } catch (e: UnknownHostException) {
                 val errorMessage = "Unknown Host: ${e.message}"
                 Log.e("HttpTest", errorMessage, e)
                 logCallback?.invoke(errorMessage)
+                failed = true
                 break
             } catch (e: IOException) {
                 val errorMessage = "IO Error: ${e.message}"
                 Log.e("HttpTest", errorMessage, e)
                 logCallback?.invoke(errorMessage)
+                failed = true
                 break
             } catch (e: RuntimeException) {
                 val errorMessage = "Runtime Error: ${e.message}"
                 Log.e("HttpTest", errorMessage, e)
                 logCallback?.invoke(errorMessage)
+                failed = true
                 break
             } finally {
                 conn?.disconnect()
@@ -117,7 +132,7 @@ class HttpTest(
         if (isActive) {
             val endTime = System.nanoTime()
             val elapsedTimeMs = (endTime - startTime) / 1_000_000
-            onLoopDone?.invoke(elapsedTimeMs)
+            onLoopDone?.invoke(HttpTestResult(elapsedTimeMs, completedLoops, !failed))
         }
     }
 }
