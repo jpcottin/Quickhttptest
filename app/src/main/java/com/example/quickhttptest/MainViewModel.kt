@@ -18,6 +18,7 @@ data class MainUiState(
     val loopValue: Int = 0,
     val logMessages: List<String> = emptyList(),
     val isLoopDone: Boolean = false,
+    val isSuccess: Boolean = true,
     val isRunning: Boolean = false,
     val elapsedTime: Long = 0L,
     val selectedUrlType: String = "distant",
@@ -83,7 +84,7 @@ class MainViewModel(
         val bufferSize = state.bufferSize
 
         _uiState.update {
-            it.copy(isRunning = true, isLoopDone = false, elapsedTime = 0L, logMessages = emptyList(), loopValue = 0)
+            it.copy(isRunning = true, isLoopDone = false, isSuccess = true, elapsedTime = 0L, logMessages = emptyList(), loopValue = 0)
         }
 
         testJob = viewModelScope.launch {
@@ -99,9 +100,15 @@ class MainViewModel(
                         current.copy(logMessages = (listOf(newMessage) + current.logMessages).take(5))
                     }
                 },
-                onLoopDone = { time ->
+                onLoopDone = { result ->
                     _uiState.update { current ->
-                        current.copy(isLoopDone = true, elapsedTime = time, loopValue = maxLoops, isRunning = false)
+                        current.copy(
+                            isLoopDone = true,
+                            isSuccess = result.success,
+                            elapsedTime = result.elapsedTimeMs,
+                            loopValue = result.completedLoops,
+                            isRunning = false
+                        )
                     }
                 }
             )

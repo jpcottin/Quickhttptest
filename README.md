@@ -27,6 +27,7 @@ A simple Android application to test HTTP connections, either to a local develop
 - Configurable stream reading buffer size (from 1024 to 1048576 bytes).
 - Displays HTTP response payload chunks directly in the app.
 - Measures the total execution time for all requests.
+- Reports **FAILED** (with the number of loops actually completed) when a request error stops the run early, instead of a misleading **DONE**.
 - Built with Jetpack Compose.
 
 ## How to use
@@ -37,5 +38,5 @@ A simple Android application to test HTTP connections, either to a local develop
 
 ## Development
 
-- **Unit Tests**: Check `HttpTestTest.kt` for core logic tests.
+- **Unit Tests**: Check `HttpTestTest.kt` for core logic tests. They run against a local `MockWebServer`, so no real network access is needed and results are deterministic.
 - **UI Tests**: Check `MainScreenTest.kt` for Compose UI tests.
