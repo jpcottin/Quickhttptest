@@ -299,3 +299,87 @@ jobs:
         with:
           name: instrumented-test-report-android-cli-experiment
           path: app/build/reports/androidTests/
+
+  # Experiment: run the new "Android Emulator (Preview)" package
+  # (emulators;latest — a separate SDK package installing to emulators/latest/,
+  # currently API 37+ only) by launching its binary directly; the emulator-runner
+  # action hardcodes $SDK/emulator/emulator and cannot use it.
+  emulator-preview-experiment:
+    name: Emulator Preview experiment (emulators/latest, API 37.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Shared setup: KVM, cmdline-tools, ps16k image + AVD, the preview
+      # emulator package, libpulse, and the console auth token.
+      - name: Set up Android Emulator Preview
+        uses: ./.github/actions/preview-emulator
+
+      - name: Boot preview emulator
+        timeout-minutes: 12
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          export ANDROID_HOME="$SDK" ANDROID_SDK_ROOT="$SDK"
+          export PATH="$SDK/platform-tools:$PATH"
+          # The binary lives outside $SDK/emulator, so the SDK root must be
+          # explicit or it would resolve relative to emulators/.
+          "$SDK/emulators/latest/emulator" @test -no-snapshot -no-window -gpu auto -noaudio -no-boot-anim -camera-back none -memory 4096 -verbose -show-kernel -debug-metrics -metrics-collection > "${{ github.workspace }}/emulator_stdout.txt" 2>&1 &
+          EMU_PID=$!
+          # Stream the emulator output live into the step log.
+          tail -F "${{ github.workspace }}/emulator_stdout.txt" &
+          TAIL_PID=$!
+          # wait-for-device hangs forever if the emulator dies; poll the process.
+          # Budgets (3 min device, 8 min boot) stay under the 12-min step timeout
+          # so these labeled errors fire before the hard kill. Observed: device
+          # ~15s, boot ~44s.
+          for _ in $(seq 1 36); do
+            kill -0 "$EMU_PID" 2>/dev/null || { echo "ERROR: emulator process exited early"; exit 1; }
+            adb get-state >/dev/null 2>&1 && break
+            sleep 5
+          done
+          adb get-state >/dev/null 2>&1 || { echo "ERROR: no device after 180s"; exit 1; }
+          for _ in $(seq 1 48); do
+            [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break
+            sleep 10
+          done
+          [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] || { echo "===== boot timeout ====="; exit 1; }
+          adb devices
+          adb shell getprop ro.build.version.sdk
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          adb logcat -v time > "${{ github.workspace }}/emulator_logcat.txt" &
+          # Stop streaming into later steps; post-boot output stays in the file.
+          kill "$TAIL_PID" 2>/dev/null || true
+
+      - name: Run instrumented tests
+        run: ./gradlew connectedDebugAndroidTest
+
+      - name: Stop emulator
+        if: always()
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          "$SDK/platform-tools/adb" emu kill || true
+
+      - name: Dump emulator output on failure
+        if: failure()
+        run: |
+          echo "===== emulator stdout (full) ====="; cat "${{ github.workspace }}/emulator_stdout.txt" 2>/dev/null || echo "(none)"
+          echo "===== logcat (tail) ====="; tail -n 300 "${{ github.workspace }}/emulator_logcat.txt" 2>/dev/null || echo "(none)"
+
+      - name: Upload test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrumented-test-report-emulator-preview
+          path: app/build/reports/androidTests/
