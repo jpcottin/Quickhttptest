@@ -12,8 +12,11 @@
 | API 37.0 | `google_apis_ps16k` | canary (`--channel=3`) | lavapipe, auto | non-blocking |
 | API 37.1 | `google_apis_ps16k` | canary | lavapipe, auto | non-blocking |
 | Android CLI experiment | `google_apis_ps16k` 37.0 | canary | emulator default | non-blocking |
+| Emulator Preview experiment | `google_apis_ps16k` 37.0 | `emulators;latest` preview package | auto | non-blocking |
 
 The Android CLI leg drives the whole flow with the [`android` CLI](https://d.android.com/tools/agents/android-cli) (`android sdk install --canary`, `android emulator create/start/stop`) instead of `sdkmanager`/`avdmanager` and the emulator-runner action.
+
+The Emulator Preview leg runs the new "Android Emulator (Preview)" SDK package (`emulators;latest`, installing to `emulators/latest/` — API 37+ only) by launching its binary directly, since the emulator-runner action hardcodes `$SDK/emulator/emulator`. Setup (system image with revision-keyed caching, AVD, console auth token) lives in the `.github/actions/preview-emulator` composite action.
 
 All emulator-runner legs use full diagnostics (`-verbose -show-kernel -debug-metrics -metrics-collection`) and a `cmdline-tools;latest` update so `avdmanager` writes a valid `target=android-37.x` (the runner's preinstalled version writes `android-0`, which the emulator clamps to API 3, disabling the Vulkan/GLDirectMem auto-enable the ps16k images need).
 
