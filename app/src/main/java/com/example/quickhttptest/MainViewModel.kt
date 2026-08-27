@@ -13,6 +13,8 @@ internal const val MIN_BUFFER_SIZE = 1024
 internal const val MAX_BUFFER_SIZE = 1048576
 private const val DEFAULT_MAX_LOOPS = 3
 private const val DEFAULT_BUFFER_SIZE = 8192
+private const val DEFAULT_DISTANT_URL = "http://flexpansion.com/public/100.txt"
+private const val DEFAULT_LOCAL_URL = "http://10.0.2.2:8000/100.txt"
 
 data class MainUiState(
     val loopValue: Int = 0,
@@ -31,14 +33,13 @@ data class MainUiState(
 )
 
 class MainViewModel(
-    private val httpTest: HttpTest = HttpTest()
+    private val httpTest: HttpTest = HttpTest(),
+    val distantUrl: String = DEFAULT_DISTANT_URL,
+    val localUrl: String = DEFAULT_LOCAL_URL
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
-
-    val distantUrl = "http://flexpansion.com/public/100.txt"
-    val localUrl = "http://10.0.2.2:8000/100.txt"
 
     private var testJob: Job? = null
 
