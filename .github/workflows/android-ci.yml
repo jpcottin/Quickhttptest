@@ -321,7 +321,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       # Shared setup: KVM, cmdline-tools, ps16k image + AVD, the preview
-      # emulator package, libpulse, and the console auth token.
+      # emulator package, and libpulse.
       - name: Set up Android Emulator Preview
         uses: ./.github/actions/preview-emulator
 
