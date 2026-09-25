@@ -64,10 +64,13 @@ class MainScreenHttpFlowTest {
 
         // Wait until the run finished successfully AND the loop counter shows the
         // final value, so a stale "DONE" from a previous run can't satisfy the wait.
+        // Also wait for the button to flip back, which happens once the job has ended.
         composeTestRule.waitUntil(timeoutMillis = 30000) {
             composeTestRule.onAllNodesWithText("DONE in", substring = true)
                 .fetchSemanticsNodes().isNotEmpty() &&
                 composeTestRule.onAllNodesWithText("Loop: $numberOfLoops")
+                    .fetchSemanticsNodes().isNotEmpty() &&
+                composeTestRule.onAllNodesWithText("Start Test")
                     .fetchSemanticsNodes().isNotEmpty()
         }
     }

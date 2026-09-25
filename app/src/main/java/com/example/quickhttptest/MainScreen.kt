@@ -57,7 +57,8 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
         showBufferError = uiState.showBufferError,
         distantUrl = viewModel.distantUrl,
         localUrl = viewModel.localUrl,
-        elapsedTime = uiState.elapsedTime
+        elapsedTime = uiState.elapsedTime,
+        httpErrorCount = uiState.httpErrorCount
     )
 }
 
@@ -80,7 +81,8 @@ fun MainContent(
     showBufferError: Boolean,
     distantUrl: String,
     localUrl: String,
-    elapsedTime: Long
+    elapsedTime: Long,
+    httpErrorCount: Int = 0
 ) {
     Column(
         modifier = Modifier
@@ -166,7 +168,12 @@ fun MainContent(
         LoopLabel(modifier = Modifier.padding(horizontal = 16.dp), loop = loopValue)
         LogDisplay(logMessages, Modifier.fillMaxWidth())
         if (isLoopDone) {
-            DoneLabel(elapsedTime = elapsedTime, isSuccess = isSuccess, modifier = Modifier.fillMaxWidth())
+            DoneLabel(
+                elapsedTime = elapsedTime,
+                isSuccess = isSuccess,
+                httpErrorCount = httpErrorCount,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -183,11 +190,22 @@ fun LogDisplay(logMessages: List<String>, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun DoneLabel(modifier: Modifier = Modifier, elapsedTime: Long, isSuccess: Boolean = true) {
+fun DoneLabel(
+    modifier: Modifier = Modifier,
+    elapsedTime: Long,
+    isSuccess: Boolean = true,
+    httpErrorCount: Int = 0
+) {
+    val text = when {
+        !isSuccess -> "FAILED after $elapsedTime ms"
+        httpErrorCount > 0 -> "DONE in $elapsedTime ms with $httpErrorCount HTTP " +
+            if (httpErrorCount == 1) "error" else "errors"
+        else -> "DONE in $elapsedTime ms"
+    }
     Text(
-        text = if (isSuccess) "DONE in $elapsedTime ms" else "FAILED after $elapsedTime ms",
+        text = text,
         fontSize = 24.sp,
-        color = if (isSuccess) Color.Unspecified else MaterialTheme.colorScheme.error,
+        color = if (isSuccess && httpErrorCount == 0) Color.Unspecified else MaterialTheme.colorScheme.error,
         textAlign = TextAlign.Center,
         modifier = modifier.padding(16.dp)
     )

@@ -23,6 +23,7 @@ data class MainUiState(
     val isSuccess: Boolean = true,
     val isRunning: Boolean = false,
     val elapsedTime: Long = 0L,
+    val httpErrorCount: Int = 0,
     val selectedUrlType: String = "distant",
     val maxLoops: Int = DEFAULT_MAX_LOOPS,
     val loopInputText: String = DEFAULT_MAX_LOOPS.toString(),
@@ -74,8 +75,9 @@ class MainViewModel(
     fun toggleTest() {
         val state = _uiState.value
         if (state.isRunning) {
+            // isRunning is cleared when the job actually finishes (see below), so a
+            // new run can't start while the stopped one is still unwinding.
             testJob?.cancel()
-            _uiState.update { it.copy(isRunning = false) }
             return
         }
         if (state.showLoopError || state.showBufferError) return
@@ -85,34 +87,38 @@ class MainViewModel(
         val bufferSize = state.bufferSize
 
         _uiState.update {
-            it.copy(isRunning = true, isLoopDone = false, isSuccess = true, elapsedTime = 0L, logMessages = emptyList(), loopValue = 0)
+            it.copy(isRunning = true, isLoopDone = false, isSuccess = true, elapsedTime = 0L, httpErrorCount = 0, logMessages = emptyList(), loopValue = 0)
         }
 
         testJob = viewModelScope.launch {
-            httpTest.test(
-                url = url,
-                maxLoops = maxLoops,
-                bufferSize = bufferSize,
-                updateLoop = { newValue ->
-                    _uiState.update { it.copy(loopValue = newValue) }
-                },
-                logCallback = { newMessage ->
-                    _uiState.update { current ->
-                        current.copy(logMessages = (listOf(newMessage) + current.logMessages).take(5))
+            try {
+                httpTest.test(
+                    url = url,
+                    maxLoops = maxLoops,
+                    bufferSize = bufferSize,
+                    updateLoop = { newValue ->
+                        _uiState.update { it.copy(loopValue = newValue) }
+                    },
+                    logCallback = { newMessage ->
+                        _uiState.update { current ->
+                            current.copy(logMessages = (listOf(newMessage) + current.logMessages).take(5))
+                        }
+                    },
+                    onLoopDone = { result ->
+                        _uiState.update { current ->
+                            current.copy(
+                                isLoopDone = true,
+                                isSuccess = result.success,
+                                elapsedTime = result.elapsedTimeMs,
+                                loopValue = result.completedLoops,
+                                httpErrorCount = result.httpErrorCount
+                            )
+                        }
                     }
-                },
-                onLoopDone = { result ->
-                    _uiState.update { current ->
-                        current.copy(
-                            isLoopDone = true,
-                            isSuccess = result.success,
-                            elapsedTime = result.elapsedTimeMs,
-                            loopValue = result.completedLoops,
-                            isRunning = false
-                        )
-                    }
-                }
-            )
+                )
+            } finally {
+                _uiState.update { it.copy(isRunning = false) }
+            }
         }
     }
 }
